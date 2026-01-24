@@ -10,12 +10,18 @@ const app = express();
 const port = 3000;
 
 dns.setServers(["8.8.8.8", "8.8.4.4"]);
-await connectDB()
+
+try {
+  await connectDB()
+} catch (error) {
+  console.error('Failed to connect to database:', error);
+  process.exit(1);
+}
 
 //Middleware
 app.use(express.json())
-app.use(cors())
 app.use(clerkMiddleware())
+app.use(cors())
 
 //API route
 app.get('/',(req,res)=> res.send('Server is live!'))
