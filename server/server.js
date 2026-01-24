@@ -5,11 +5,11 @@ import connectDB from './configs/db.js';
 import { clerkMiddleware } from '@clerk/express'
 import { serve } from "inngest/express";
 import { inngest, functions } from "./inngest/index.js"
-
+import dns from "dns";
 const app = express();
 const port = 3000;
 
-
+dns.setServers(["8.8.8.8", "8.8.4.4"]);
 await connectDB()
 
 //Middleware
