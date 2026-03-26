@@ -2,7 +2,7 @@ import axios from "axios";
 import Movie from "../models/Movie.js";
 import Show from "../models/Show.js";
 
-//API to get now playing movies from TMDB pi
+//API to get now playing movies from TMDB api
 export const getNowPlayingMovies = async (req, res) => {
   try {
     const { data } = await axios.get(
@@ -52,7 +52,7 @@ export const addShow = async (req,res) =>{
             release_date:movieApiData.release_date,
             original_language:movieApiData.original_language,
             genres:movieApiData.genres,
-            casts:movieApiData.casts,
+            casts:movieCreditsData.cast,
             tagline:movieApiData.tagline || "",
             vote_average: movieApiData.vote_average,
             runtime:movieApiData.runtime,
@@ -78,17 +78,17 @@ export const addShow = async (req,res) =>{
         if(showsToCreate.length > 0){
             await Show.insertMany(showsToCreate);
         }
-        res.json({ success: true, movies: 'Show Added successfully' });
+        res.json({ success: true, message: 'Show Added successfully' });
     } catch (error) {
     console.error(error.message);
-    res.status(500).json({ success: false, movies: error.message });
+    res.status(500).json({ success: false, message: error.message });
     }
 }
 
 //API to get all shows from the db
 export const getShows = async(req,res)=>{
     try {
-        const shows = await (await Show.find({showDateTime: {$gte: new Date()}}).populate('movie')).toSorted({ showDateTime: 1});
+        const shows = await Show.find({showDateTime: {$gte: new Date()}}).populate('movie').sort({ showDateTime: 1});
 
         //filter unique shows
         const uniqueShows = new Set(shows.map(show => show.movie))
@@ -100,3 +100,56 @@ export const getShows = async(req,res)=>{
     }
 }
 //API to get a single show from the database
+export const getShow = async (req, res) => {
+  try {
+    const { movieId } = req.params;
+
+    // 1️⃣ Find upcoming shows
+    const shows = await Show.find({
+      movie: movieId,
+      showDateTime: { $gte: new Date() }
+    });
+
+    // 2️⃣ Try finding movie in DB
+    let movie = await Movie.findById(movieId);
+
+    // 3️⃣ If not in DB → fetch from TMDB
+    if (!movie) {
+      const { data } = await axios.get(
+        `https://api.themoviedb.org/3/movie/${movieId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${process.env.TMDB_API_KEY}`,
+          },
+        }
+      );
+
+      movie = data;
+    }
+
+    // 4️⃣ Group show timings by date
+    const dateTime = {};
+
+    shows.forEach((show) => {
+      const date = show.showDateTime.toISOString().split("T")[0];
+
+      if (!dateTime[date]) {
+        dateTime[date] = [];
+      }
+
+      dateTime[date].push({ time: show.showDateTime, showId: show._id });
+    });
+
+    res.json({
+      success: true,
+      movie,
+      dateTime,
+    });
+
+  } catch (error) {
+    res.json({
+      success: false,
+      message: error.message,
+    });
+  }
+};

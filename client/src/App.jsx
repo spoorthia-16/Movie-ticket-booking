@@ -14,10 +14,15 @@ import AddShows from './page/admin/AddShows'
 import Dashboard from './page/admin/Dashboard'
 import ListShows from './page/admin/ListShows'
 import ListBookings from './page/admin/ListBookings'
+import { useAppContext } from './context/AppContext.jsx'
+import { SignIn } from '@clerk/clerk-react'
+import Loading from './components/Loading.jsx'
 
 
 const App = () => {
   const isAdminRoute =useLocation().pathname.startsWith('/admin')
+
+  const { user } = useAppContext()
 
   return (
     <>
@@ -26,11 +31,17 @@ const App = () => {
       <Routes>
         <Route path='/' element={<Home/>}/>
         <Route path='/movies' element={<Movies/>}/>
-        <Route path='/Movies/:id' element={<MovieDetails/>}/>
-        <Route path='/Movies/:id/:date' element={<SeatLayout/>}/>
+        <Route path='/movies/:id' element={<MovieDetails/>}/>
+        <Route path='/movies/:id/:date' element={<SeatLayout/>}/>
         <Route path='/my-bookings' element={<MyBookings/>}/>
+        <Route path='/loading/:nextUrl' element={<Loading/>}/>
+
         <Route path='/favorites' element={<Favorite />} />
-        <Route path='/admin/*' element={<Layout/>}>
+        <Route path='/admin/*' element={user ? <Layout/> : (
+          <div className='min-h-screen flex justify-center items-center'>
+            <SignIn fallbackRedirectUrl={'/admin'}/>
+          </div>
+        )}>
           <Route index element={<Dashboard/>}/>
           <Route path='add-shows' element={<AddShows/>}/>
           <Route path='list-shows' element={<ListShows/>}/>
