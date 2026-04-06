@@ -14,7 +14,9 @@ import { stripeWebhooks } from './controllers/stripeWebhooks.js';
 
 const app = express();
 const port = 3000;
-dns.setServers(["8.8.8.8", "8.8.4.4"]);
+dns.setServers(['8.8.8.8', '8.8.4.4']);
+dns.setDefaultResultOrder('ipv4first');
+
 
 await connectDB()
 

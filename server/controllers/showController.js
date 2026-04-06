@@ -44,19 +44,20 @@ export const addShow = async (req,res) =>{
         const movieCreditsData = movieCreditsResponse.data;
 
          const movieDetails = {
-            _id : movieId,
-            title: movieApiData.title,
-            overview: movieApiData.overview,
-            poster_path:movieApiData.poster_path,
-            backdrop_path:movieApiData.backdrop_path,
-            release_date:movieApiData.release_date,
-            original_language:movieApiData.original_language,
-            genres:movieApiData.genres,
-            casts:movieCreditsData.cast,
-            tagline:movieApiData.tagline || "",
-            vote_average: movieApiData.vote_average,
-            runtime:movieApiData.runtime,
+            _id : String(movieId),
+            title: movieApiData.title || "Unknown Title",
+            overview: movieApiData.overview || "No overview available",
+            poster_path: movieApiData.poster_path || "",
+            backdrop_path: movieApiData.backdrop_path || "",
+            release_date: movieApiData.release_date || "",
+            original_language: movieApiData.original_language || "en",
+            genres: movieApiData.genres || [],
+            casts: movieCreditsData.cast || [],
+            tagline: movieApiData.tagline || "",
+            vote_average: movieApiData.vote_average || 0,
+            runtime: movieApiData.runtime || 0,
          }
+
 
          //Add movie to the database
          movie = await Movie.create(movieDetails);
@@ -67,7 +68,7 @@ export const addShow = async (req,res) =>{
             show.time.forEach((time)=>{
                 const dateTimeString = `${showDate}T${time}`;
                 showsToCreate.push({
-                    movie: movieId,
+                    movie: String(movieId),
                     showDateTime: new Date(dateTimeString),
                     showPrice,
                     occupiedSeats: {}
