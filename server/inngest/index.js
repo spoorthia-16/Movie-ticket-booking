@@ -136,11 +136,98 @@ const sendBookingConfirmarionEmail = inngest.createFunction(
     })
   }
 )
+//Inngest function to send remainders
+const sendShowRemainders = inngest.createFunction(
+  {id: "send-show-remainders"},
+  {cron: "0 */8 * * *" }, //Every 8 hours
+  async ({ step })=>{
+    const now = new Date();
+    const in8Hours = new Date(now.getTime()+ 8*60*60*1000 );
+    const windowStart = new Date(in8Hours.getTime()- 10 * 60*1000);
+
+    //Prepare remainder tasks
+    const remainderTasks = await step.run
+    ("prepare-remainder-tasks",async()=> {
+      const shows = await Show.find({
+        showTime: {$gte: windowStart, $lte: in8Hours},
+      }).populate('movie');
+
+      const tasks = [];
+
+      for(const show of shows){
+        if(!show.movie || !show.occupiedSeats) continue;
+        
+        const userIds = [...new Set(Object.values(show.occupiedSeats))];
+        if(userIds.length === 0) continue;
+
+        const users = await User.find({_id: {$in: userIds}}).select("name email");
+
+        for(const user of users){
+          tasks.push({
+            userEmail: user.email,
+            userName: user.name,
+            movieTitle: show.movie.title,
+            showTime: show.showTime,
+          })
+        }
+      }
+      return tasks;
+    })
+    if(remainderTasks.length === 0){
+      return {sent:0, message: "No remainders to send"}
+    }
+    //Send remainder emails
+    const results = await step.run('send-all-remainders', async ()=>{
+      return await Promise.allSettled(
+        remainderTasks.map(task => sendEmail({
+          to: task.userEmail,
+          subject: `Remainder: Your movie "${task.movieTitle}" starts soon!`,
+          body:`<div style = "font-family:Arial,sans-serif; padding: 20px"><p>Enjoy the show</p></div>`
+        }))
+      )
+    })
+    const sent = results.filter(r => r.status === "fulfilled").length;
+    const failed = results.length - sent;
+
+    return {
+      sent,
+      failed,
+      message: `Sent ${sent} remainder(s), ${failed} failed.`
+    }
+  }
+)
+
+//Inngest func to send notifications whwn a new show is added
+const sendNewShowNotifications = inngest.createFunction(
+  {id: "send-new-show-notifications"},
+  {event: "app/show.added"},
+  async ({ event })=>{
+    const {movieTitle} = event.data;
+    const users = await User.find({})
+
+    for(const user of users){
+      const userEmail = user.email;
+      const userName= user.name;
+
+      const subject = `New Show Added: ${movieTitle}`;
+      const body = `<div style = "font-family:Arial,sans-serif; padding: 20px"> <p> We've added a new show to our library</p></div>`;
+
+      await sendEmail({
+        to: userEmail,
+        subject,
+        body,
+      })
+    }
+    return {message: "Notification sent."}
+  }
+)
 
 export const functions = [
   syncUserCreation,
   syncUserDeletion,
   syncUserUpdation,
   releaseSeatsAndDeleteBooking,
-  sendBookingConfirmarionEmail
+  sendBookingConfirmarionEmail,
+  sendShowRemainders,
+  sendNewShowNotifications
 ];
